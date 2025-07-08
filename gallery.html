@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bildergalerie</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background: #111;
+      color: #fff;
+      font-family: sans-serif;
+      overflow: hidden;
+    }
+    .gallery-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      background: #111;
+    }
+    .gallery-image {
+      max-width: 100vw;
+      max-height: 80vh;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.7);
+      background: #222;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .gallery-nav {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      position: absolute;
+      bottom: 24px;
+      left: 0;
+      width: 100vw;
+      z-index: 10;
+    }
+    .gallery-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #444;
+      border: 2px solid #fff;
+      opacity: 0.6;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+    .gallery-dot.active {
+      background: #fff;
+      opacity: 1;
+    }
+    .fullscreen-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 1.1em;
+      cursor: pointer;
+      z-index: 20;
+    }
+    @media (max-width: 600px) {
+      .gallery-image {
+        max-height: 70vh;
+      }
+      .gallery-nav {
+        bottom: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="gallery-container" id="galleryContainer">
+    <nav style="width:100%;background:#23272a;padding:16px 0 12px 0;box-shadow:0 2px 12px #0006;display:flex;justify-content:center;gap:32px;position:sticky;top:0;z-index:100;">
+      <a href="index.html" style="color:#4fa3ff;font-weight:600;font-size:1.15em;text-decoration:none;">Startseite</a>
+      <a href="gallery.html" style="color:#4fa3ff;font-weight:600;font-size:1.15em;text-decoration:none;">Galerie</a>
+    </nav>
+    <h1 style="text-align:center;margin:24px 0 18px 0;">Bücher & Comics Galerie</h1>
+    <div id="bookSelect" style="text-align:center;margin-bottom:24px;"></div>
+    <div id="bookGallery" style="display:flex;flex-direction:column;align-items:center;"></div>
+    <button id="fullscreenBtn" style="position:fixed;bottom:24px;right:24px;z-index:200;background:#23272a;color:#fff;border:none;border-radius:50%;width:54px;height:54px;font-size:2em;box-shadow:0 2px 12px #0008;cursor:pointer;">⛶</button>
+  </div>
+  <script>
+    let books = [];
+    let currentBook = 0;
+    let currentImage = 0;
+
+    async function loadBooks() {
+      try {
+        const res = await fetch('images.json');
+        books = await res.json();
+        renderBookSelect();
+        if (books.length > 0) showBook(0);
+      } catch (e) {
+        document.getElementById('bookGallery').innerHTML = '<p style="color:#ff4f4f;">Fehler beim Laden der Bücher.</p>';
+      }
+    }
+
+    function renderBookSelect() {
+      const sel = document.getElementById('bookSelect');
+      sel.innerHTML = books.map((b, i) => `<button onclick="showBook(${i})" style="margin:6px 8px;padding:10px 22px;border-radius:12px;border:none;background:${i===currentBook?'#4fa3ff':'#23272a'};color:#fff;font-weight:600;font-size:1.1em;cursor:pointer;box-shadow:0 2px 8px #4fa3ff22;">${b.title}</button>`).join('');
+    }
+
+    function showBook(idx) {
+      currentBook = idx;
+      currentImage = 0;
+      renderBookSelect();
+      renderGallery();
+    }
+
+    function renderGallery() {
+      const book = books[currentBook];
+      const gallery = document.getElementById('bookGallery');
+      if (!book || !book.images.length) {
+        gallery.innerHTML = '<p style="color:#b0b0b0;">Keine Bilder in diesem Buch/Comic.</p>';
+        return;
+      }
+      gallery.innerHTML = `
+        <div style="display:flex;align-items:center;gap:18px;">
+          <button onclick="prevImage()" style="font-size:2em;background:none;border:none;color:#4fa3ff;cursor:pointer;">&#8592;</button>
+          <img id="mainImage" src="images/${book.title}/${book.images[currentImage]}" alt="Bild" style="max-width:90vw;max-height:70vh;border-radius:12px;box-shadow:0 2px 16px #4fa3ff33;background:#222;object-fit:contain;display:block;">
+          <button onclick="nextImage()" style="font-size:2em;background:none;border:none;color:#4fa3ff;cursor:pointer;">&#8594;</button>
+        </div>
+        <div style="margin-top:18px;text-align:center;color:#b0b0b0;">Bild ${currentImage+1} von ${book.images.length}</div>
+      `;
+    }
+
+    window.prevImage = function() {
+      if (currentImage > 0) {
+        currentImage--;
+        renderGallery();
+      }
+    }
+    window.nextImage = function() {
+      if (books[currentBook] && currentImage < books[currentBook].images.length-1) {
+        currentImage++;
+        renderGallery();
+      }
+    }
+
+    // Fullscreen-Logik
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    fullscreenBtn.onclick = function() {
+      const img = document.getElementById('mainImage');
+      if (!img) return;
+      if (img.requestFullscreen) img.requestFullscreen();
+      else if (img.webkitRequestFullscreen) img.webkitRequestFullscreen();
+      else if (img.msRequestFullscreen) img.msRequestFullscreen();
+    };
+
+    loadBooks();
+  </script>
+</body>
+</html> 
